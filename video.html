@@ -1,0 +1,109 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title></title>
+    <script src="http://cdn.bootcss.com/jquery/2.0.0/jquery.js"></script>
+    <script type="text/javascript" src="./utils.js"></script>
+    <script type="text/javascript" >
+		var socket;
+		function createSocket(address, name)
+		{
+            socket = new WebSocket(address);
+            socketName = name;
+            socket.binaryType = "arraybuffer";
+            socket.onopen = function() {
+                $("#serverStatus").html("Connected to " + name);
+                sentTimes = [];
+                receivedTimes = [];
+                //tok = defaultTok;
+                numNulls = 0
+                var msg = {
+                'data': 'NULL'
+                };
+                socket.send(JSON.stringify(msg));   
+               
+                sentTimes.push(new Date());
+        }
+        socket.onmessage = function(e)
+         {
+            console.log(e);
+            j = JSON.parse(e.data);
+            if(j.type=='FINISH')
+                alert('FINISH');
+    		//console.log(j);
+            else
+    		  sendFrameLoop();
+        }
+	}
+        function play() {
+            var video = $("#myVideo").get(0).play();
+            createSocket("ws:127.0.0.1:9000", "Local");
+        }
+        function stop() {
+            var video = $("#myVideo").get(0).pause();
+        }
+        $(document).ready(function () {
+            var video = $("#myVideo");
+            var _video = video.get(0);
+            $("#myVideo").bind("play", function () {
+                drawCanvas();
+            });
+            function drawBlock(context, x, y, width, height, color) {
+                var imageData = context.createImageData(width, height);
+                var pixelArray = imageData.data,
+                    pixel = null;
+                for (var m = 0, length = pixelArray.length; m < length; m += 4) {
+                    pixelArray[m] = pixelArray[m + 1] = pixelArray[m + 2] = pixelArray[m + 3] = color;
+                }
+                context.putImageData(imageData, x, y);
+            }
+            function drawCanvas() {
+                if (_video.paused || _video.ended) {
+                    return;
+                }
+                var canvas = $("#canvas");
+                var _canvas = canvas.get(0);
+                var context = _canvas.getContext("2d");
+                context.drawImage(_video, 0, 0, 640, 360);
+				var dataURL = _canvas.toDataURL('image/jpeg', 0.6)
+				//console.log(dataURL);
+                setTimeout(function() {requestAnimFrame(sendFrameLoop)}, 250);
+                //setTimeout(drawCanvas, 30);
+            }
+        });
+		
+		function sendFrameLoop()
+		{
+            var video = $("#myVideo");
+            var _video = video.get(0);
+            var canvas = $("#canvas");
+            var _canvas = canvas.get(0);
+            var context = _canvas.getContext("2d");
+            context.drawImage(_video, 0, 0, 640, 360);
+            var dataURL = _canvas.toDataURL('image/jpeg', 0.6)
+            var msg = {
+            'data': dataURL
+            };
+            socket.send(JSON.stringify(msg));
+            //socket.send(JSON.stringify({'data': dataURL}));
+            sentTimes.push(new Date());
+		}	
+        
+    </script>
+</head>
+<body>
+<center>
+<hr />
+
+<video  width="640" height="360" id="myVideo" controls>
+    <source src="video.mp4" ></source>
+</video>
+<canvas width="640" height="360" id="canvas">
+
+</canvas>
+
+<button onclick="play()" >play</button><button onclick="stop()">stop</button>
+
+</center>
+</body>
+</html>
